@@ -66,7 +66,6 @@ export function ClinicalOverview({ snapshot }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Missing data warnings */}
       {missing_data.length > 0 && (
         <Card className="border-amber-300 bg-amber-50">
           <CardContent className="py-3">
@@ -84,7 +83,6 @@ export function ClinicalOverview({ snapshot }: Props) {
         </Card>
       )}
 
-      {/* Key observations */}
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="text-sm">Key Observations</CardTitle>
@@ -134,7 +132,6 @@ export function ClinicalOverview({ snapshot }: Props) {
         </CardContent>
       </Card>
 
-      {/* Active conditions */}
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="text-sm">
@@ -170,7 +167,6 @@ export function ClinicalOverview({ snapshot }: Props) {
         </CardContent>
       </Card>
 
-      {/* Recent procedures */}
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="text-sm">

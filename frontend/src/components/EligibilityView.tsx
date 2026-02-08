@@ -63,7 +63,6 @@ function buildFootnoteMap(review: AIReviewResponse): Map<string, number> {
     }
   };
 
-  // Scan text fields for (FHIR ID: xxx) patterns
   const idPattern = /\(FHIR ID:\s*([0-9a-f-]+)\)/gi;
   for (const text of [review.clinical_summary, review.eligibility_assessment]) {
     for (const match of text.matchAll(idPattern)) {
@@ -71,7 +70,6 @@ function buildFootnoteMap(review: AIReviewResponse): Map<string, number> {
     }
   }
 
-  // Scan checklist explanations
   for (const item of review.checklist) {
     for (const match of item.explanation.matchAll(idPattern)) {
       register(match[1]);
@@ -176,7 +174,6 @@ function AIReviewModal({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Clinical Summary */}
             <div>
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Clinical Summary</div>
               <p className="mt-1 text-sm">
@@ -186,7 +183,6 @@ function AIReviewModal({
 
             <Separator />
 
-            {/* Eligibility Assessment */}
             <div>
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Eligibility Assessment</div>
               <div className="mt-1 flex items-center gap-2">
@@ -205,7 +201,6 @@ function AIReviewModal({
 
             <Separator />
 
-            {/* Checklist */}
             {review.checklist.length > 0 && (
               <div>
                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Criteria Checklist</div>
@@ -220,7 +215,6 @@ function AIReviewModal({
               </div>
             )}
 
-            {/* Next Steps */}
             {review.recommended_next_steps.length > 0 && (
               <>
                 <Separator />
@@ -235,7 +229,6 @@ function AIReviewModal({
               </>
             )}
 
-            {/* Footnotes */}
             {footnoteMap.size > 0 && (
               <>
                 <Separator />
@@ -272,7 +265,6 @@ export function EligibilityView({ patientId }: Props) {
       const data = await getEligibility(patientId);
       setResult(data);
     } catch {
-      // keep current state
     } finally {
       setLoading(false);
     }
@@ -326,7 +318,6 @@ export function EligibilityView({ patientId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Status card */}
       <Card>
         <CardHeader className="pb-1">
           <div className="flex items-center justify-between">
@@ -362,7 +353,6 @@ export function EligibilityView({ patientId }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Reasons */}
           <div className="mb-3">
             {result.reasons.map((r) => (
               <p key={r} className="text-sm">{r}</p>
@@ -375,7 +365,6 @@ export function EligibilityView({ patientId }: Props) {
             </p>
           )}
 
-          {/* Criteria checklist */}
           <Separator />
           <div className="mt-1">
             {result.criteria.map((c, i) => (
@@ -388,7 +377,6 @@ export function EligibilityView({ patientId }: Props) {
         </CardContent>
       </Card>
 
-      {/* AI Review Modal */}
       {showModal && aiReview && (
         <AIReviewModal review={aiReview} onClose={() => setShowModal(false)} />
       )}

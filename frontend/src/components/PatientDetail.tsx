@@ -68,7 +68,6 @@ export function PatientDetail({ patientId }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
-      {/* Patient header */}
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold">{patient.full_name}</h2>
@@ -97,7 +96,6 @@ export function PatientDetail({ patientId }: Props) {
         </div>
       </div>
 
-      {/* Segmented control */}
       <div className="mb-4 inline-flex rounded-md border bg-muted p-0.5 text-sm">
         {TABS.map((t) => (
           <button
@@ -114,7 +112,6 @@ export function PatientDetail({ patientId }: Props) {
         ))}
       </div>
 
-      {/* Tab content */}
       {tab === "overview" && <ClinicalOverview snapshot={snapshot} />}
       {tab === "eligibility" && <EligibilityView patientId={patientId} />}
       {tab === "timeline" && <TimelineView patientId={patientId} />}

@@ -49,7 +49,6 @@ export function CohortReportView() {
       </div>
 
       <div className="space-y-4">
-        {/* Summary bar */}
         <Card>
           <CardHeader className="pb-1">
             <CardTitle className="text-sm">Distribution</CardTitle>
@@ -81,7 +80,6 @@ export function CohortReportView() {
           </CardContent>
         </Card>
 
-        {/* Unknown reasons breakdown */}
         {report.top_unknown_reasons.length > 0 && (
           <Card>
             <CardHeader className="pb-1">

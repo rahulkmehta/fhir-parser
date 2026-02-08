@@ -71,7 +71,6 @@ def _build_patient_context(db: Session, patient_id: str) -> str | None:
 
     lines = []
 
-    # Demographics
     given = patient.given_name or ""
     family = patient.family_name or ""
     lines.append(f"PATIENT: {given} {family} (ID: {patient.id})")
@@ -81,7 +80,6 @@ def _build_patient_context(db: Session, patient_id: str) -> str | None:
         lines.append(f"Deceased: {patient.deceased_date_time}")
     lines.append("")
 
-    # Active conditions
     conditions = (
         db.query(Condition)
         .filter(Condition.patient_id == patient_id, Condition.clinical_status == "active")
@@ -94,7 +92,6 @@ def _build_patient_context(db: Session, patient_id: str) -> str | None:
         )
     lines.append("")
 
-    # Recent observations (last 30 by date)
     observations = (
         db.query(Observation)
         .filter(Observation.patient_id == patient_id)
@@ -115,7 +112,6 @@ def _build_patient_context(db: Session, patient_id: str) -> str | None:
         )
     lines.append("")
 
-    # Recent procedures (last 20 by date)
     procedures = (
         db.query(Procedure)
         .filter(Procedure.patient_id == patient_id)
@@ -131,7 +127,6 @@ def _build_patient_context(db: Session, patient_id: str) -> str | None:
         )
     lines.append("")
 
-    # Medications
     medications = (
         db.query(MedicationRequest)
         .filter(MedicationRequest.patient_id == patient_id)
@@ -187,11 +182,9 @@ def _parse_ai_response(raw: str, patient_id: str, deterministic_status: str) -> 
 def generate_ai_review(db: Session, patient_id: str) -> AIReviewResponse:
     """Generate an AI-assisted review for a patient's bariatric surgery eligibility."""
 
-    # Step 1: Get deterministic eligibility (Part C) — this is the source of truth
     eligibility = determine_eligibility(db, patient_id)
     deterministic_status = eligibility.status
 
-    # Step 2: Build patient context
     context = _build_patient_context(db, patient_id)
     if context is None:
         return AIReviewResponse(
@@ -204,7 +197,6 @@ def generate_ai_review(db: Session, patient_id: str) -> AIReviewResponse:
             error="Patient not found.",
         )
 
-    # Step 3: Build the user message with deterministic status + patient data
     user_message = (
         f"DETERMINISTIC ELIGIBILITY STATUS: {deterministic_status}\n"
         f"DETERMINISTIC REASONS: {'; '.join(eligibility.reasons)}\n"
@@ -212,7 +204,6 @@ def generate_ai_review(db: Session, patient_id: str) -> AIReviewResponse:
         f"{context}"
     )
 
-    # Step 4: Call OpenAI
     try:
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         response = client.chat.completions.create(

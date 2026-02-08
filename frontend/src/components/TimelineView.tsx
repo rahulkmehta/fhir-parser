@@ -72,7 +72,6 @@ export function TimelineView({ patientId }: Props) {
         const res = await getTimeline(patientId, p, pageSize);
         setData(res);
       } catch {
-        // keep current state
       } finally {
         setLoading(false);
       }

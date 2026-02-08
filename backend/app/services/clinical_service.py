@@ -102,7 +102,6 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
     if not patient:
         return None
 
-    # Active conditions — exclude non-clinical SNOMED semantic tags
     _EXCLUDED_TAGS = ("(finding)", "(person)", "(situation)")
     active_conditions = [
         c
@@ -113,7 +112,6 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
         if not (c.display and any(c.display.endswith(tag) for tag in _EXCLUDED_TAGS))
     ]
 
-    # Recent procedures (last 10)
     recent_procedures = (
         db.query(Procedure)
         .filter(Procedure.patient_id == patient_id)
@@ -122,7 +120,6 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
         .all()
     )
 
-    # Key observations
     missing_data = []
 
     bmi_obs = _get_latest_obs(db, patient_id, LOINC_BMI)
@@ -181,7 +178,6 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
 def get_timeline(
     db: Session, patient_id: str, page: int = 1, page_size: int = 50
 ) -> TimelineResponse:
-    # Get observations
     obs_query = (
         db.query(Observation)
         .filter(Observation.patient_id == patient_id)
@@ -189,7 +185,6 @@ def get_timeline(
     )
     obs_count = obs_query.count()
 
-    # Get procedures
     proc_query = (
         db.query(Procedure)
         .filter(Procedure.patient_id == patient_id)
@@ -199,8 +194,6 @@ def get_timeline(
 
     total = obs_count + proc_count
 
-    # Merge and sort: fetch all, combine, sort, paginate in Python
-    # For 1000 patients this is fine; for larger datasets we'd use UNION in SQL
     all_entries = []
 
     for obs in obs_query.all():
@@ -221,10 +214,8 @@ def get_timeline(
             detail=proc.status,
         ))
 
-    # Sort by date descending (None dates go to end)
     all_entries.sort(key=lambda e: e.date or "", reverse=True)
 
-    # Paginate
     start = (page - 1) * page_size
     end = start + page_size
     page_entries = all_entries[start:end]

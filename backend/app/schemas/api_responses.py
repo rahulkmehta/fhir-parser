@@ -67,7 +67,6 @@ class TimelineResponse(BaseModel):
     total: int
 
 
-# --- Eligibility ---
 
 class EvidenceItem(BaseModel):
     resource_type: str  # "Observation", "Condition", "Procedure"
@@ -112,7 +111,6 @@ class CohortReport(BaseModel):
     top_unknown_reasons: List[UnknownReason]
 
 
-# --- AI Review ---
 
 class AIChecklistItem(BaseModel):
     criterion: str

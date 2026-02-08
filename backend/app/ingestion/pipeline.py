@@ -81,9 +81,6 @@ def _get_category(categories) -> str | None:
     return code
 
 
-# ---- Resource loaders ----
-
-
 def load_practitioners(session, files: list[str]):
     count = 0
     for path in files:
@@ -461,7 +458,6 @@ def load_allergy_intolerances(session, files: list[str]):
     count = 0
     for path in files:
         for _, parsed in stream_ndjson(path, FhirAllergyIntolerance):
-            # AllergyIntolerance uses 'patient' not 'subject'
             patient_id = extract_patient_id(parsed.patient)
             if not patient_id:
                 continue
@@ -555,15 +551,10 @@ def run_ingestion(data_dir: str, db_url: str):
 
     start = time.time()
 
-    # Resources
     load_practitioners(session, files.get("Practitioner", []))
     load_organizations(session, files.get("Organization", []))
     load_locations(session, files.get("Location", []))
-
-    # Key Group
     load_patients(session, files.get("Patient", []))
-
-    # Then, clinical resources
     load_conditions(session, files.get("Condition", []))
     load_observations(session, files.get("Observation", []))
     load_procedures(session, files.get("Procedure", []))

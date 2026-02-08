@@ -69,8 +69,6 @@ export interface TimelineResponse {
   total: number;
 }
 
-// --- Eligibility ---
-
 export interface EvidenceItem {
   resource_type: string;
   resource_id: string;
@@ -113,8 +111,6 @@ export interface CohortReport {
   unknown: CohortReportCategory;
   top_unknown_reasons: UnknownReason[];
 }
-
-// --- AI Review ---
 
 export interface AIChecklistItem {
   criterion: string;

@@ -231,7 +231,6 @@ def generate_cohort_report(db: Session) -> CohortReport:
             patient_ids=ids,
         )
 
-    # Count and rank unknown reasons
     reason_counts = Counter(unknown_reasons)
     unknown_total = len(buckets["unknown"])
     top_reasons = [

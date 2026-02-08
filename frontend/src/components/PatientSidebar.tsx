@@ -28,7 +28,6 @@ export function PatientSidebar({ selectedId, onSelect, onCohortReport, showingCo
       setPatients(data.patients);
       setTotal(data.total);
     } catch {
-      // keep current state on error
     } finally {
       setLoading(false);
     }
