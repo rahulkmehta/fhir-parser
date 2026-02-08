@@ -28,8 +28,8 @@ function formatDOB(dateStr: string): string {
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Clinical Overview" },
-  { key: "eligibility", label: "Eligibility" },
   { key: "timeline", label: "Timeline" },
+  { key: "eligibility", label: "Eligibility" },
 ];
 
 export function PatientDetail({ patientId }: Props) {

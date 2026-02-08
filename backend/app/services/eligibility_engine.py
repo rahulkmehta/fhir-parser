@@ -10,7 +10,7 @@ from app.schemas.api_responses import (
 )
 from app.utils.code_systems import (
     LOINC_BMI,
-    SNOMED_HYPERTENSION_CODES, SNOMED_TYPE2_DIABETES_CODES,
+    SNOMED_ALL_COMORBIDITY_CODES,
     SNOMED_WEIGHT_LOSS_CODES, SNOMED_PSYCH_EVAL_CODES,
 )
 
@@ -25,13 +25,12 @@ def _get_latest_bmi(db: Session, patient_id: str) -> Observation | None:
 
 
 def _get_comorbidities(db: Session, patient_id: str) -> list[Condition]:
-    all_codes = SNOMED_HYPERTENSION_CODES | SNOMED_TYPE2_DIABETES_CODES
     return (
         db.query(Condition)
         .filter(
             Condition.patient_id == patient_id,
             Condition.clinical_status == "active",
-            Condition.code.in_(all_codes),
+            Condition.code.in_(SNOMED_ALL_COMORBIDITY_CODES),
         )
         .all()
     )
@@ -141,10 +140,10 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
         comorbidities = _get_comorbidities(db, patient_id)
         if not comorbidities:
             criteria.append(EligibilityCriterion(
-                criterion="Comorbidity present (hypertension or type 2 diabetes)",
+                criterion="Comorbidity present (e.g., hypertension, type 2 diabetes, sleep apnea, hyperlipidemia)",
                 met=False,
                 evidence=[],
-                reason="No active hypertension or type 2 diabetes found",
+                reason="No qualifying active comorbidity found",
             ))
             return EligibilityResult(
                 patient_id=patient_id,
@@ -155,7 +154,7 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
             )
 
         criteria.append(EligibilityCriterion(
-            criterion="Comorbidity present (hypertension or type 2 diabetes)",
+            criterion="Comorbidity present (e.g., hypertension, type 2 diabetes, sleep apnea, hyperlipidemia)",
             met=True,
             evidence=[_to_evidence("Condition", c) for c in comorbidities],
             reason=None,

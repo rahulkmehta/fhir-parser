@@ -91,7 +91,7 @@ export function ClinicalOverview({ snapshot }: Props) {
           <CardDescription className="text-xs">Most recent BMI, blood pressure, weight, and height by LOINC code</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             <ObservationCard
               label="BMI"
               obs={key_observations.bmi}
