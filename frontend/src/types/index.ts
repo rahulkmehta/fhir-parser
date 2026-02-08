@@ -113,3 +113,22 @@ export interface CohortReport {
   unknown: CohortReportCategory;
   top_unknown_reasons: UnknownReason[];
 }
+
+// --- AI Review ---
+
+export interface AIChecklistItem {
+  criterion: string;
+  status: "met" | "not_met" | "unknown";
+  evidence: EvidenceItem[];
+  explanation: string;
+}
+
+export interface AIReviewResponse {
+  patient_id: string;
+  deterministic_status: string;
+  clinical_summary: string;
+  eligibility_assessment: string;
+  checklist: AIChecklistItem[];
+  recommended_next_steps: string[];
+  error: string | null;
+}

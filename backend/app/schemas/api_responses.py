@@ -110,3 +110,22 @@ class CohortReport(BaseModel):
     not_eligible: CohortReportCategory
     unknown: CohortReportCategory
     top_unknown_reasons: List[UnknownReason]
+
+
+# --- AI Review ---
+
+class AIChecklistItem(BaseModel):
+    criterion: str
+    status: str  # "met", "not_met", "unknown"
+    evidence: List[EvidenceItem]
+    explanation: str
+
+
+class AIReviewResponse(BaseModel):
+    patient_id: str
+    deterministic_status: str  # from Part C — never overridden by AI
+    clinical_summary: str
+    eligibility_assessment: str
+    checklist: List[AIChecklistItem]
+    recommended_next_steps: List[str]
+    error: Optional[str] = None

@@ -80,7 +80,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
     criteria: list[EligibilityCriterion] = []
     reasons: list[str] = []
 
-    # Step 1: Check BMI
     bmi_obs = _get_latest_bmi(db, patient_id)
     bmi_value = bmi_obs.value_quantity if bmi_obs else None
 
@@ -101,7 +100,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
 
     bmi_evidence = [_to_evidence("Observation", bmi_obs)]
 
-    # Step 2: BMI threshold check
     bmi_gte_40 = bmi_value >= 40
     bmi_gte_35 = bmi_value >= 35
 
@@ -120,7 +118,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
             bmi_value=bmi_value,
         )
 
-    # BMI ≥ 35 — now check if ≥ 40 or has comorbidity
     if bmi_gte_40:
         criteria.append(EligibilityCriterion(
             criterion="BMI ≥ 40",
@@ -129,7 +126,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
             reason=None,
         ))
     else:
-        # BMI 35-39.9 — need comorbidity
         criteria.append(EligibilityCriterion(
             criterion="BMI ≥ 35",
             met=True,
@@ -160,7 +156,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
             reason=None,
         ))
 
-    # Step 3: Required documentation — weight-loss attempts
     wl_evidence = _get_weight_loss_evidence(db, patient_id)
     if not wl_evidence:
         criteria.append(EligibilityCriterion(
@@ -184,7 +179,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
         reason=None,
     ))
 
-    # Step 4: Required documentation — psychological evaluation
     psych_evidence = _get_psych_eval_evidence(db, patient_id)
     if not psych_evidence:
         criteria.append(EligibilityCriterion(
@@ -208,7 +202,6 @@ def determine_eligibility(db: Session, patient_id: str) -> EligibilityResult:
         reason=None,
     ))
 
-    # All criteria met
     return EligibilityResult(
         patient_id=patient_id,
         status="eligible",

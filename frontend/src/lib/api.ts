@@ -5,6 +5,7 @@ import type {
   TimelineResponse,
   EligibilityResult,
   CohortReport,
+  AIReviewResponse,
 } from "@/types";
 
 const API_BASE = "http://localhost:8000/api";
@@ -56,4 +57,14 @@ export function getEligibility(id: string): Promise<EligibilityResult> {
 
 export function getCohortReport(): Promise<CohortReport> {
   return fetchJSON(`${API_BASE}/cohort`);
+}
+
+export async function requestAIReview(id: string): Promise<AIReviewResponse> {
+  const res = await fetch(`${API_BASE}/patients/${id}/ai-review`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
 }
