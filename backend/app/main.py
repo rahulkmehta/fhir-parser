@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import patients, clinical
+from app.routers import patients, clinical, eligibility
 
 app = FastAPI(title="FHIR Prior Auth Review Tool")
 
@@ -15,3 +15,4 @@ app.add_middleware(
 
 app.include_router(patients.router, prefix="/api")
 app.include_router(clinical.router, prefix="/api")
+app.include_router(eligibility.router, prefix="/api")

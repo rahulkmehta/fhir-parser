@@ -3,6 +3,7 @@ import glob
 import json
 import logging
 import os
+import re
 import time
 from collections import defaultdict
 
@@ -27,6 +28,15 @@ from app.schemas.fhir_resources import (
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 5000
+
+
+def _strip_synthea_digits(name: str | None) -> str | None:
+    """Strip trailing digits that Synthea appends to each part of synthetic names."""
+    if not name:
+        return name
+    parts = [re.sub(r"\d+$", "", part).strip() for part in name.split()]
+    return " ".join(p for p in parts if p) or name
+
 
 def discover_ndjson_files(data_dir: str) -> dict[str, list[str]]:
     """Scan data directory and group NDJSON files by resource type."""
@@ -164,8 +174,8 @@ def load_patients(session, files: list[str]):
             addr = parsed.address[0] if parsed.address else None
             session.add(Patient(
                 id=parsed.id,
-                family_name=name.family if name else None,
-                given_name=" ".join(name.given) if name and name.given else None,
+                family_name=_strip_synthea_digits(name.family) if name else None,
+                given_name=_strip_synthea_digits(" ".join(name.given)) if name and name.given else None,
                 prefix=name.prefix[0] if name and name.prefix else None,
                 gender=parsed.gender,
                 birth_date=parsed.birthDate,

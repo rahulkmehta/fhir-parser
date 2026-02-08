@@ -1,6 +1,16 @@
 import json
+import re
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+
+_SNOMED_TAG_RE = re.compile(r"\s*\((disorder|procedure)\)\s*$")
+
+
+def _clean_display(display: str | None) -> str:
+    """Strip SNOMED semantic tags like (disorder) and (procedure) from display text."""
+    if not display:
+        return "Unknown"
+    return _SNOMED_TAG_RE.sub("", display).strip() or display
 
 from app.models.db_models import Condition, Observation, Procedure
 from app.schemas.api_responses import (
@@ -27,7 +37,7 @@ def _obs_to_summary(obs: Observation) -> ObservationSummary:
     return ObservationSummary(
         id=obs.id,
         code=obs.code,
-        display=obs.display,
+        display=_clean_display(obs.display),
         value=_format_obs_value(obs),
         value_numeric=obs.value_quantity,
         date=obs.effective_date_time,
@@ -92,13 +102,16 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
     if not patient:
         return None
 
-    # Active conditions
-    active_conditions = (
-        db.query(Condition)
+    # Active conditions — exclude non-clinical SNOMED semantic tags
+    _EXCLUDED_TAGS = ("(finding)", "(person)", "(situation)")
+    active_conditions = [
+        c
+        for c in db.query(Condition)
         .filter(Condition.patient_id == patient_id, Condition.clinical_status == "active")
         .order_by(desc(Condition.onset_date_time))
         .all()
-    )
+        if not (c.display and any(c.display.endswith(tag) for tag in _EXCLUDED_TAGS))
+    ]
 
     # Recent procedures (last 10)
     recent_procedures = (
@@ -138,7 +151,7 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
             ConditionSummary(
                 id=c.id,
                 code=c.code,
-                display=c.display,
+                display=_clean_display(c.display),
                 clinical_status=c.clinical_status,
                 onset_date=c.onset_date_time,
             )
@@ -148,7 +161,7 @@ def get_snapshot(db: Session, patient_id: str) -> ClinicalSnapshot | None:
             ProcedureSummary(
                 id=p.id,
                 code=p.code,
-                display=p.display,
+                display=_clean_display(p.display),
                 status=p.status,
                 performed_date=p.performed_start,
             )
@@ -194,7 +207,7 @@ def get_timeline(
         all_entries.append(TimelineEntry(
             resource_type="Observation",
             resource_id=obs.id,
-            display_name=obs.display or "Unknown Observation",
+            display_name=_clean_display(obs.display),
             date=obs.effective_date_time,
             detail=_format_obs_value(obs),
         ))
@@ -203,7 +216,7 @@ def get_timeline(
         all_entries.append(TimelineEntry(
             resource_type="Procedure",
             resource_id=proc.id,
-            display_name=proc.display or "Unknown Procedure",
+            display_name=_clean_display(proc.display),
             date=proc.performed_start,
             detail=proc.status,
         ))

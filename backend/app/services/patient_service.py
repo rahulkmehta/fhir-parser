@@ -9,8 +9,7 @@ from app.utils.date_utils import compute_age
 def _to_summary(p: Patient) -> PatientSummary:
     given = p.given_name or ""
     family = p.family_name or ""
-    prefix = f"{p.prefix} " if p.prefix else ""
-    full_name = f"{prefix}{given} {family}".strip() or "Unknown"
+    full_name = f"{given} {family}".strip() or "Unknown"
 
     return PatientSummary(
         id=p.id,

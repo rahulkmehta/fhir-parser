@@ -65,3 +65,48 @@ class TimelineEntry(BaseModel):
 class TimelineResponse(BaseModel):
     entries: List[TimelineEntry]
     total: int
+
+
+# --- Eligibility ---
+
+class EvidenceItem(BaseModel):
+    resource_type: str  # "Observation", "Condition", "Procedure"
+    resource_id: str
+    display: Optional[str]
+    code: Optional[str]
+    date: Optional[str]
+
+
+class EligibilityCriterion(BaseModel):
+    criterion: str  # e.g. "BMI ≥ 40", "Comorbidity present"
+    met: bool
+    evidence: List[EvidenceItem]
+    reason: Optional[str]  # explanation when not met or unknown
+
+
+class EligibilityResult(BaseModel):
+    patient_id: str
+    status: str  # "eligible", "not_eligible", "unknown"
+    reasons: List[str]  # why this classification
+    criteria: List[EligibilityCriterion]
+    bmi_value: Optional[float]
+
+
+class CohortReportCategory(BaseModel):
+    count: int
+    percentage: float
+    patient_ids: List[str]
+
+
+class UnknownReason(BaseModel):
+    reason: str
+    count: int
+    percentage: float
+
+
+class CohortReport(BaseModel):
+    total_patients: int
+    eligible: CohortReportCategory
+    not_eligible: CohortReportCategory
+    unknown: CohortReportCategory
+    top_unknown_reasons: List[UnknownReason]
