@@ -6,7 +6,7 @@ import os
 import time
 from collections import defaultdict
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
@@ -27,7 +27,6 @@ from app.schemas.fhir_resources import (
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 5000
-
 
 def discover_ndjson_files(data_dir: str) -> dict[str, list[str]]:
     """Scan data directory and group NDJSON files by resource type."""
@@ -217,6 +216,7 @@ def load_conditions(session, files: list[str]):
 
 def load_observations(session, files: list[str]):
     count = 0
+    batch = []
     for path in files:
         for _, parsed in stream_ndjson(path, FhirObservation):
             patient_id = extract_patient_id(parsed.subject)
@@ -224,7 +224,6 @@ def load_observations(session, files: list[str]):
                 continue
             code, code_system, display = _get_first_coding(parsed.code)
 
-            # Extract value
             value_quantity = None
             value_unit = None
             value_code = None
@@ -240,32 +239,34 @@ def load_observations(session, files: list[str]):
                     if parsed.valueCodeableConcept else None
                 )
 
-            # Serialize components (for BP panels etc.)
             component_json = None
             if parsed.component:
                 component_json = json.dumps(
                     [c.model_dump(exclude_none=True) for c in parsed.component]
                 )
 
-            session.add(Observation(
-                id=parsed.id,
-                patient_id=patient_id,
-                encounter_id=extract_encounter_id(parsed.encounter),
-                status=parsed.status,
-                category=_get_category(parsed.category),
-                code_system=code_system,
-                code=code,
-                display=display or (parsed.code.text if parsed.code else None),
-                effective_date_time=parsed.effectiveDateTime,
-                value_quantity=value_quantity,
-                value_unit=value_unit,
-                value_code=value_code,
-                value_display=value_display,
-                component_json=component_json,
-            ))
+            batch.append({
+                "id": parsed.id,
+                "patient_id": patient_id,
+                "encounter_id": extract_encounter_id(parsed.encounter),
+                "status": parsed.status,
+                "category": _get_category(parsed.category),
+                "code_system": code_system,
+                "code": code,
+                "display": display or (parsed.code.text if parsed.code else None),
+                "effective_date_time": parsed.effectiveDateTime,
+                "value_quantity": value_quantity,
+                "value_unit": value_unit,
+                "value_code": value_code,
+                "value_display": value_display,
+                "component_json": component_json,
+            })
             count += 1
-            if count % BATCH_SIZE == 0:
-                session.flush()
+            if len(batch) >= BATCH_SIZE:
+                session.execute(insert(Observation), batch)
+                batch = []
+    if batch:
+        session.execute(insert(Observation), batch)
     session.commit()
     logger.info(f"Loaded {count} observations")
 
@@ -327,7 +328,6 @@ def load_encounters(session, files: list[str]):
             if parsed.type:
                 type_code, _, type_display = _get_first_coding(parsed.type[0])
 
-            # Extract practitioner display from participants
             practitioner_display = None
             for p in parsed.participant:
                 if isinstance(p, dict):
@@ -336,7 +336,6 @@ def load_encounters(session, files: list[str]):
                         practitioner_display = indiv["display"]
                         break
 
-            # Extract location display
             location_display = None
             for loc in parsed.location:
                 if isinstance(loc, dict):
@@ -416,7 +415,6 @@ def load_document_references(session, files: list[str]):
 
             type_code, _, type_display = _get_first_coding(parsed.type)
 
-            # Decode base64 content
             content_text = None
             if parsed.content:
                 attachment = parsed.content[0].attachment
@@ -532,9 +530,6 @@ def load_immunizations(session, files: list[str]):
     logger.info(f"Loaded {count} immunizations")
 
 
-# ---- Main orchestrator ----
-
-
 def run_ingestion(data_dir: str, db_url: str):
     """Parse all FHIR NDJSON files and load into SQLite."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -550,15 +545,15 @@ def run_ingestion(data_dir: str, db_url: str):
 
     start = time.time()
 
-    # Reference resources first
+    # Resources
     load_practitioners(session, files.get("Practitioner", []))
     load_organizations(session, files.get("Organization", []))
     load_locations(session, files.get("Location", []))
 
-    # Patients
+    # Key Group
     load_patients(session, files.get("Patient", []))
 
-    # Clinical resources
+    # Then, clinical resources
     load_conditions(session, files.get("Condition", []))
     load_observations(session, files.get("Observation", []))
     load_procedures(session, files.get("Procedure", []))
