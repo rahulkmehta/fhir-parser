@@ -1,6 +1,6 @@
 # FHIR Prior Authorization Review Tool
 
-Clinician-facing prior authorization review tool for bariatric surgery eligibility. See [WRITEUP.md](WRITEUP.md) for full technical details.
+Clinician-facing prior authorization review tool for bariatric surgery eligibility.
 
 ## Prerequisites
 
