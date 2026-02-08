@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getEligibility, requestAIReview } from "@/lib/api";
-import type { EligibilityResult, EligibilityCriterion, AIReviewResponse, AIChecklistItem } from "@/types";
+import type { EligibilityResult, EligibilityCriterion, AIReviewResponse } from "@/types";
 
 interface Props {
   patientId: string;
@@ -46,103 +46,21 @@ function CriterionRow({ criterion }: { criterion: EligibilityCriterion }) {
   );
 }
 
-const AI_STATUS_DOT: Record<string, string> = {
-  met: "bg-green-500",
-  not_met: "bg-red-400",
-  unknown: "bg-amber-400",
-};
+/** Transform the backend AI review response into the Part D spec JSON shape. */
+function toSpecJson(review: AIReviewResponse): object {
+  const stripFhirRefs = (text: string) =>
+    text.replace(/\s*\(FHIR ID:\s*[0-9a-f-]+\)/gi, "");
 
-/** Collect all FHIR IDs from the review and assign footnote numbers. */
-function buildFootnoteMap(review: AIReviewResponse): Map<string, number> {
-  const seen = new Map<string, number>();
-  let counter = 1;
-
-  const register = (id: string) => {
-    if (!seen.has(id)) {
-      seen.set(id, counter++);
-    }
+  return {
+    clinicalSummary: stripFhirRefs(review.clinical_summary),
+    eligibilityAssessment: review.deterministic_status,
+    checklist: review.checklist.map((item) => ({
+      requirement: item.criterion,
+      status: item.status,
+      evidence: item.evidence.map((e) => `${e.resource_type}/${e.resource_id}`),
+    })),
+    recommendedNextSteps: review.recommended_next_steps,
   };
-
-  const idPattern = /\(FHIR ID:\s*([0-9a-f-]+)\)/gi;
-  for (const text of [review.clinical_summary, review.eligibility_assessment]) {
-    for (const match of text.matchAll(idPattern)) {
-      register(match[1]);
-    }
-  }
-
-  for (const item of review.checklist) {
-    for (const match of item.explanation.matchAll(idPattern)) {
-      register(match[1]);
-    }
-    for (const e of item.evidence) {
-      register(e.resource_id);
-    }
-  }
-
-  return seen;
-}
-
-/** Render text with inline (FHIR ID: xxx) replaced by superscript footnote numbers. */
-function FootnotedText({ text, footnoteMap }: { text: string; footnoteMap: Map<string, number> }) {
-  const parts: (string | { num: number; key: string })[] = [];
-  const pattern = /\(FHIR ID:\s*([0-9a-f-]+)\)/gi;
-  let lastIndex = 0;
-
-  for (const match of text.matchAll(pattern)) {
-    const idx = match.index!;
-    if (idx > lastIndex) {
-      parts.push(text.slice(lastIndex, idx));
-    }
-    const fhirId = match[1];
-    const num = footnoteMap.get(fhirId) ?? 0;
-    parts.push({ num, key: fhirId });
-    lastIndex = idx + match[0].length;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return (
-    <span>
-      {parts.map((p, i) =>
-        typeof p === "string" ? (
-          <span key={i}>{p}</span>
-        ) : (
-          <sup key={p.key} className="text-[10px] font-semibold text-muted-foreground">[{p.num}]</sup>
-        )
-      )}
-    </span>
-  );
-}
-
-function AIChecklistRow({ item, footnoteMap }: { item: AIChecklistItem; footnoteMap: Map<string, number> }) {
-  return (
-    <div className="py-2">
-      <div className="flex items-center gap-2">
-        <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${AI_STATUS_DOT[item.status] ?? "bg-gray-400"}`} />
-        <span className="text-sm font-medium">{item.criterion}</span>
-        <span className="text-xs text-muted-foreground capitalize">
-          {item.status.replace("_", " ")}
-        </span>
-      </div>
-      <p className="ml-4 mt-0.5 text-xs text-muted-foreground">
-        <FootnotedText text={item.explanation} footnoteMap={footnoteMap} />
-      </p>
-      {item.evidence.length > 0 && (
-        <div className="ml-4 mt-1 space-y-0.5">
-          {item.evidence.map((e) => {
-            const num = footnoteMap.get(e.resource_id);
-            return (
-              <div key={e.resource_id} className="text-xs text-muted-foreground/70">
-                <span>{e.display ?? "Unknown"}</span>
-                {num && <sup className="text-[10px] font-semibold text-muted-foreground">[{num}]</sup>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function AIReviewModal({
@@ -152,10 +70,15 @@ function AIReviewModal({
   review: AIReviewResponse;
   onClose: () => void;
 }) {
-  const footnoteMap = useMemo(
-    () => (review.error ? new Map<string, number>() : buildFootnoteMap(review)),
-    [review],
-  );
+  const [copied, setCopied] = useState(false);
+  const specJson = review.error ? null : JSON.stringify(toSpecJson(review), null, 2);
+
+  const handleCopy = async () => {
+    if (!specJson) return;
+    await navigator.clipboard.writeText(specJson);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -173,77 +96,16 @@ function AIReviewModal({
             {review.error}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div>
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Clinical Summary</div>
-              <p className="mt-1 text-sm">
-                <FootnotedText text={review.clinical_summary} footnoteMap={footnoteMap} />
-              </p>
-            </div>
-
-            <Separator />
-
-            <div>
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Eligibility Assessment</div>
-              <div className="mt-1 flex items-center gap-2">
-                <Badge
-                  variant={STATUS_CONFIG[review.deterministic_status as keyof typeof STATUS_CONFIG]?.variant ?? "outline"}
-                  className={STATUS_CONFIG[review.deterministic_status as keyof typeof STATUS_CONFIG]?.className ?? ""}
-                >
-                  {STATUS_CONFIG[review.deterministic_status as keyof typeof STATUS_CONFIG]?.label ?? review.deterministic_status}
-                </Badge>
-                <span className="text-[10px] text-muted-foreground">(deterministic — not AI-generated)</span>
-              </div>
-              <p className="mt-1 text-sm">
-                <FootnotedText text={review.eligibility_assessment} footnoteMap={footnoteMap} />
-              </p>
-            </div>
-
-            <Separator />
-
-            {review.checklist.length > 0 && (
-              <div>
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Criteria Checklist</div>
-                <div className="mt-1">
-                  {review.checklist.map((item, i) => (
-                    <div key={i}>
-                      {i > 0 && <Separator />}
-                      <AIChecklistRow item={item} footnoteMap={footnoteMap} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {review.recommended_next_steps.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recommended Next Steps</div>
-                  <ul className="mt-1 space-y-1">
-                    {review.recommended_next_steps.map((step, i) => (
-                      <li key={i} className="text-sm">- {step}</li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            )}
-
-            {footnoteMap.size > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sources</div>
-                  <div className="mt-1 space-y-0.5">
-                    {Array.from(footnoteMap.entries()).map(([fhirId, num]) => (
-                      <div key={fhirId} className="font-mono text-[10px] text-muted-foreground/60">
-                        [{num}] Source FHIR: {fhirId}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+          <div className="relative">
+            <button
+              onClick={handleCopy}
+              className="absolute right-2 top-2 rounded-md border bg-background px-2 py-1 text-xs font-medium transition-colors hover:bg-accent"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <pre className="bg-muted rounded-md p-4 text-sm overflow-x-auto">
+              {specJson}
+            </pre>
           </div>
         )}
       </div>
